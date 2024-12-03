@@ -10,7 +10,6 @@ const stripePromise = loadStripe('pk_test_51QMX8zCrXpZkt7Cpt7EYqVbgNP6Lm8N1iJ389
 function App() {
   const [clientSecret, setClientSecret] = useState(null);
   const [paymentDetails, setPaymentDetails] = useState(null); // Store payment details
-  const stripeAccountId = 'acct_1QQP4cCdwebH2AJZ';
 
   // Extract `linkId` from the URL
   const getLinkIdFromUrl = () => {
@@ -42,7 +41,6 @@ function App() {
             paymentDetailId: paymentDetails.paymentDetailId, // Use fetched payment details
             userId: paymentDetails.linkUserId, // Use fetched user ID
             amount: paymentDetails.amount, // Use fetched amount
-            stripeAccountId: stripeAccountId, // Use provided Stripe account ID
           }),
         });
         const data = await response.json();
