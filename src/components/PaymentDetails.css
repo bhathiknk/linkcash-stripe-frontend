@@ -1,0 +1,43 @@
+.payment-details {
+    max-width: 100%;
+    margin: 20px auto;
+    border-radius: 8px;
+    background-color: #ffffff;
+}
+
+.payment-details .card-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.payment-details .card-text {
+    font-size: 1rem;
+    margin-bottom: 10px;
+    color: #6c757d;
+}
+
+.payment-details strong {
+    color: #000;
+}
+
+.loading-container {
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+.text-primary {
+    color: #007bff !important;
+}
+
+.text-success {
+    color: #28a745 !important;
+}
