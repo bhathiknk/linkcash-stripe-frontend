@@ -1,6 +1,5 @@
 import React from 'react';
-import './PaymentDetails.css'; // Optional: Add additional custom styling
-import 'bootstrap/dist/css/bootstrap.min.css'; // Import Bootstrap styles
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 function PaymentDetails({ details }) {
     if (!details) {
@@ -15,17 +14,15 @@ function PaymentDetails({ details }) {
     }
 
     return (
-        <div className="card payment-details shadow-sm">
-            <div className="card-body">
-                <h2 className="card-title text-primary">{details.title}</h2>
-                <p className="card-text text-secondary">{details.description}</p>
-                <p className="card-text">
-                    <strong>Amount:</strong> <span className="text-success">${details.amount}</span>
-                </p>
-                <p className="card-text">
-                    <strong>Expires After:</strong> {details.expireAfter}
-                </p>
-            </div>
+        <div className="details-container">
+            <h4 className="text-primary">{details.title}</h4>
+            <p className="text-secondary">{details.description}</p>
+            <p>
+                <strong>Amount:</strong> <span className="text-success">£{details.amount}</span>
+            </p>
+            <p>
+                <strong>Expires After:</strong> {details.expireAfter}
+            </p>
         </div>
     );
 }

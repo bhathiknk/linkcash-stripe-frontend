@@ -3,15 +3,14 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import CheckoutForm from './components/CheckoutForm';
 import PaymentDetails from './components/ PaymentDetails';
-import './App.css'; // Import the CSS for animation and layout
+import './App.css'; // Import CSS for styling
 
 const stripePromise = loadStripe('pk_test_51QMX8zCrXpZkt7Cpt7EYqVbgNP6Lm8N1iJ389ej6Wm0UHN5jEGzo0BHZWDGzc5bw3s7GaLGhOIifHgRPpZj3dhvQ00ZSJwQUA6'); // Replace with your Stripe Publishable Key
 
 function App() {
   const [clientSecret, setClientSecret] = useState(null);
-  const [paymentDetails, setPaymentDetails] = useState(null); // Store payment details
+  const [paymentDetails, setPaymentDetails] = useState(null);
 
-  // Extract `linkId` from the URL
   const getLinkIdFromUrl = () => {
     const url = window.location.href;
     const match = url.match(/link\/([^/]+)/);
@@ -25,7 +24,7 @@ function App() {
         throw new Error('Failed to fetch payment details');
       }
       const data = await response.json();
-      setPaymentDetails(data); // Store the fetched payment details
+      setPaymentDetails(data);
     } catch (error) {
       console.error('Error fetching payment details:', error);
     }
@@ -38,9 +37,9 @@ function App() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            paymentDetailId: paymentDetails.paymentDetailId, // Use fetched payment details
-            userId: paymentDetails.linkUserId, // Use fetched user ID
-            amount: paymentDetails.amount, // Use fetched amount
+            paymentDetailId: paymentDetails.paymentDetailId,
+            userId: paymentDetails.paymentDetailUserId,
+            amount: paymentDetails.amount,
           }),
         });
         const data = await response.json();
@@ -54,32 +53,31 @@ function App() {
   useEffect(() => {
     const linkId = getLinkIdFromUrl();
     if (linkId) {
-      fetchPaymentDetails(linkId); // Fetch payment details
+      fetchPaymentDetails(linkId);
     }
   }, []);
 
   useEffect(() => {
     if (paymentDetails && !clientSecret) {
-      fetchClientSecret(); // Fetch client secret only after payment details are loaded
+      fetchClientSecret();
     }
   }, [paymentDetails, clientSecret]);
 
   return (
-      <div className="container">
-        <div className="content-wrapper">
-          {/* Payment Details */}
-          <PaymentDetails details={paymentDetails} />
-
-          {/* Checkout Section */}
-          <div className="checkout-section">
+      <div className="container mt-4">
+        <div className="payment-container shadow rounded p-4 bg-light">
+          {paymentDetails && <PaymentDetails details={paymentDetails} />}
+          <div className="checkout-form mt-4">
             {clientSecret ? (
                 <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
                   <CheckoutForm />
                 </Elements>
             ) : (
                 paymentDetails && (
-                    <div className="loading-container">
-                      <div className="spinner"></div>
+                    <div className="loading-container text-center">
+                      <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
                       <p>Initializing payment...</p>
                     </div>
                 )

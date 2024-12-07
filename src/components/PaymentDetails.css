@@ -3,6 +3,7 @@
     margin: 20px auto;
     border-radius: 8px;
     background-color: #ffffff;
+    text-align: center; /* Center-align text */
 }
 
 .payment-details .card-title {
