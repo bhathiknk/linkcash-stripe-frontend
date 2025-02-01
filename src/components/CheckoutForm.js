@@ -20,7 +20,7 @@ function CheckoutForm() {
         const { error, paymentIntent } = await stripe.confirmPayment({
             elements,
             confirmParams: {},
-            redirect: 'if_required', // Prevent redirection
+            redirect: 'if_required',
         });
 
         if (error) {
@@ -30,29 +30,7 @@ function CheckoutForm() {
         }
 
         if (paymentIntent && paymentIntent.status === 'succeeded') {
-            setMessage('Payment successful! Saving transaction...');
-
-            try {
-                const response = await fetch('http://localhost:8080/api/payments/confirm', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ paymentIntentId: paymentIntent.id }),
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => {
-                        throw new Error('Failed to parse backend error response.');
-                    });
-                    throw new Error(errorData.error || 'Failed to save transaction.');
-                }
-
-                const responseData = await response.json();
-                console.log('Transaction saved successfully:', responseData);
-                setMessage('Payment and transaction saved successfully!');
-            } catch (error) {
-                console.error('Error saving transaction:', error);
-                setMessage('Payment successful, but failed to save transaction. Please contact support.');
-            }
+            setMessage('Payment successful! Your transaction will be processed.');
         } else {
             setMessage('Payment failed. Please try again.');
         }
@@ -61,7 +39,7 @@ function CheckoutForm() {
     };
 
     const paymentElementOptions = {
-        layout: 'accordion', // Accordion layout for the PaymentElement
+        layout: 'accordion',
     };
 
     return (
