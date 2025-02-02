@@ -14,15 +14,19 @@ function PaymentDetails({ details }) {
     }
 
     return (
-        <div className="details-container">
-            <h4 className="text-primary">{details.title}</h4>
+        <div className="text-center">
+            <h3 className="text-primary">{details.title}</h3>
             <p className="text-secondary">{details.description}</p>
             <p>
-                <strong>Amount:</strong> <span className="text-success">£{details.amount}</span>
+                <strong>Amount:</strong>
+                <span className="text-success ms-2">£{details.amount}</span>
             </p>
-            <p>
-                <strong>Expires After:</strong> {details.expireAfter}
-            </p>
+            {details.expireAfter && (
+                <p>
+                    <strong>Expires After: </strong>
+                    {details.expireAfter}
+                </p>
+            )}
         </div>
     );
 }
