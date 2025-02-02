@@ -1,14 +1,16 @@
 /* PaymentFlow.jsx */
-
 import React, { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { useNavigate } from 'react-router-dom';
 import CheckoutForm from './CheckoutForm';
-import PaymentDetails from './PaymentDetails';
-import OneTimePaymentPage from './OneTimePaymentPage';
+import RegularPaymentDetails from './RegularPaymentDetails';
+import OneTimePaymentDetails from './OneTimePaymentDetails';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
-const stripePromise = loadStripe('pk_test_51QMX8zCrXpZkt7Cpt7EYqVbgNP6Lm8N1iJ389ej6Wm0UHN5jEGzo0BHZWDGzc5bw3s7GaLGhOIifHgRPpZj3dhvQ00ZSJwQUA6');
+const stripePromise = loadStripe(
+    'pk_test_51QMX8zCrXpZkt7Cpt7EYqVbgNP6Lm8N1iJ389ej6Wm0UHN5jEGzo0BHZWDGzc5bw3s7GaLGhOIifHgRPpZj3dhvQ00ZSJwQUA6'
+);
 
 function getLinkInfoFromUrl() {
     const url = window.location.href;
@@ -24,25 +26,29 @@ function getLinkInfoFromUrl() {
 }
 
 function ErrorModal({ message, onClose }) {
+    const errorModalStyles = {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: 'rgba(255,255,255,0.95)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 9999
+    };
+
+    const errorModalContentStyles = {
+        textAlign: 'center',
+        padding: '2rem'
+    };
+
     return (
-        <div
-            style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                width: '100vw',
-                height: '100vh',
-                backgroundColor: 'white',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                zIndex: 9999,
-            }}
-        >
-            <div style={{ textAlign: 'center', padding: '2rem' }}>
-                <h2 style={{ marginBottom: '1rem' }}>Payment Link Unavailable</h2>
-                <p style={{ marginBottom: '1rem' }}>{message}</p>
-                <p style={{ marginBottom: '2rem' }}>
+        <div style={errorModalStyles}>
+            <div style={errorModalContentStyles}>
+                <h2 className="mb-3">Payment Link Unavailable</h2>
+                <p className="mb-5" style={{ color: 'red' }}>
                     This one-time payment link has already been used. Please contact support or request a new payment link.
                 </p>
 
@@ -64,6 +70,7 @@ function PaymentFlow() {
         if (linkId) {
             fetchPaymentDetails(linkId, isOneTime);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchPaymentDetails = async (linkId, isOneTimePayment) => {
@@ -93,17 +100,17 @@ function PaymentFlow() {
                     ? {
                         oneTimePaymentDetailsId: paymentDetails.oneTimePaymentDetailsId,
                         userId: paymentDetails.paymentDetailUserId,
-                        amount: paymentDetails.amount,
+                        amount: paymentDetails.amount
                     }
                     : {
                         paymentDetailId: paymentDetails.paymentDetailId,
                         userId: paymentDetails.paymentDetailUserId,
-                        amount: paymentDetails.amount,
+                        amount: paymentDetails.amount
                     };
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestBody),
+                    body: JSON.stringify(requestBody)
                 });
                 if (!response.ok) {
                     const errData = await response.json();
@@ -121,7 +128,31 @@ function PaymentFlow() {
         if (paymentDetails && !clientSecret) {
             fetchClientSecret();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [paymentDetails, clientSecret]);
+
+    // Inline styles for PaymentFlow container and card
+    const wrapperStyles = {
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: '2rem'
+    };
+
+    const cardStyles = {
+        border: 'none',
+        borderRadius: '1rem',
+        overflow: 'hidden',
+        maxWidth: '900px',
+        width: '100%'
+    };
+
+    const checkoutContainerStyles = {
+        maxWidth: '400px',
+        margin: '0 auto'
+    };
 
     if (errorMessage) {
         return (
@@ -137,36 +168,39 @@ function PaymentFlow() {
     }
 
     return (
-        <div className="container py-4">
+        <div style={wrapperStyles}>
             {paymentDetails ? (
-                <div className="row">
-                    <div
-                        className="col-12 col-md-6 d-flex flex-column justify-content-center align-items-center mb-4"
-                        style={{ minHeight: '50vh' }}
-                    >
-                        {isOneTime ? (
-                            <OneTimePaymentPage details={paymentDetails} />
-                        ) : (
-                            <PaymentDetails details={paymentDetails} />
-                        )}
-                    </div>
-                    <div className="col-12 col-md-6">
-                        {clientSecret ? (
-                            <Elements
-                                stripe={stripePromise}
-                                options={{ clientSecret, appearance: { theme: 'stripe' } }}
-                            >
-                                <CheckoutForm
-                                    onPaymentSuccess={() => navigate('/payment-status?status=success')}
-                                    onPaymentError={() => navigate('/payment-status?status=error')}
-                                />
-                            </Elements>
-                        ) : (
-                            <div className="text-center mt-4">
-                                <div className="spinner-border text-primary" role="status" />
-                                <p>Initializing payment...</p>
+                <div className="card shadow" style={cardStyles}>
+                    <div className="card-body">
+                        <div className="row">
+                            <div className="col-12 col-md-6 mb-4 mb-md-0">
+                                {isOneTime ? (
+                                    <OneTimePaymentDetails details={paymentDetails} />
+                                ) : (
+                                    <RegularPaymentDetails details={paymentDetails} />
+                                )}
                             </div>
-                        )}
+                            <div className="col-12 col-md-6">
+                                {clientSecret ? (
+                                    <div style={checkoutContainerStyles}>
+                                        <Elements
+                                            stripe={stripePromise}
+                                            options={{ clientSecret, appearance: { theme: 'stripe' } }}
+                                        >
+                                            <CheckoutForm
+                                                onPaymentSuccess={() => navigate('/payment-status?status=success')}
+                                                onPaymentError={() => navigate('/payment-status?status=error')}
+                                            />
+                                        </Elements>
+                                    </div>
+                                ) : (
+                                    <div className="text-center mt-4">
+                                        <div className="spinner-border text-primary" role="status" />
+                                        <p>Initializing payment...</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             ) : (

@@ -1,8 +1,8 @@
-/* components/CheckoutForm.jsx */
-
+/* CheckoutForm.jsx */
 import React, { useState } from 'react';
 import { useStripe, useElements, PaymentElement } from '@stripe/react-stripe-js';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import stripeLogo from './Assets/Powered by Stripe - blurple.svg'; // Ensure this file exists in your assets folder
 
 function CheckoutForm({ onPaymentSuccess, onPaymentError }) {
     const stripe = useStripe();
@@ -22,7 +22,7 @@ function CheckoutForm({ onPaymentSuccess, onPaymentError }) {
         const { error, paymentIntent } = await stripe.confirmPayment({
             elements,
             confirmParams: {},
-            redirect: 'if_required',
+            redirect: 'if_required'
         });
 
         if (error) {
@@ -42,32 +42,53 @@ function CheckoutForm({ onPaymentSuccess, onPaymentError }) {
         setIsProcessing(false);
     };
 
+    // Inline styles for CheckoutForm container and payment element wrapper
+    const checkoutFormWrapperStyles = {
+        background: '#ffffff',
+        padding: '2rem',
+        borderRadius: '0.5rem',
+        boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)'
+    };
+
+    const paymentElementWrapperStyles = {
+        marginBottom: '1rem'
+    };
+
     return (
-        <div style={{ maxWidth: '400px', margin: '0 auto' }}>
-            <h4 className="mb-3 text-center">Secure Payment</h4>
+        <div style={checkoutFormWrapperStyles}>
+            <h4 className="text-center mb-3">Secure Payment</h4>
             <form onSubmit={handleSubmit}>
-                <PaymentElement />
+                <div style={paymentElementWrapperStyles} className="mb-3">
+                    <PaymentElement />
+                </div>
                 <button
                     type="submit"
                     disabled={isProcessing || !stripe || !elements}
-                    className="btn btn-primary w-100 mt-3"
+                    className="btn btn-primary w-100"
                 >
                     {isProcessing ? 'Processing...' : 'Pay Now'}
                 </button>
             </form>
+
             {message && (
                 <div
-                    className="alert mt-3"
-                    style={{
-                        color: message.includes('successful') ? 'green' : 'red',
-                    }}
+                    className={`alert mt-3 ${message.includes('successful') ? 'alert-success' : 'alert-danger'}`}
                 >
                     {message}
                 </div>
             )}
-            <small className="text-muted d-block mt-2 text-center">
+
+            <small className="text-muted d-block text-center mt-2">
                 Payment methods vary by location and amount.
             </small>
+
+            <div className="text-center mt-3">
+                <img
+                    src={stripeLogo}
+                    alt="Powered by Stripe"
+                    style={{ height: '24px', verticalAlign: 'middle' }}
+                />
+            </div>
         </div>
     );
 }
