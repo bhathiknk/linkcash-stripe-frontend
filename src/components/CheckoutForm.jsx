@@ -1,8 +1,10 @@
+/* components/CheckoutForm.jsx */
+
 import React, { useState } from 'react';
 import { useStripe, useElements, PaymentElement } from '@stripe/react-stripe-js';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-function CheckoutForm() {
+function CheckoutForm({ onPaymentSuccess, onPaymentError }) {
     const stripe = useStripe();
     const elements = useElements();
     const [message, setMessage] = useState('');
@@ -26,13 +28,16 @@ function CheckoutForm() {
         if (error) {
             setMessage(error.message);
             setIsProcessing(false);
+            if (onPaymentError) onPaymentError();
             return;
         }
 
         if (paymentIntent && paymentIntent.status === 'succeeded') {
             setMessage('Payment successful! Your transaction will be processed.');
+            if (onPaymentSuccess) onPaymentSuccess();
         } else {
             setMessage('Payment failed. Please try again.');
+            if (onPaymentError) onPaymentError();
         }
         setIsProcessing(false);
     };
@@ -53,13 +58,15 @@ function CheckoutForm() {
             {message && (
                 <div
                     className="alert mt-3"
-                    style={{ color: message.includes('successful') ? 'green' : 'red' }}
+                    style={{
+                        color: message.includes('successful') ? 'green' : 'red',
+                    }}
                 >
                     {message}
                 </div>
             )}
             <small className="text-muted d-block mt-2 text-center">
-                Payment methods are displayed based on your location, order amount, and currency.
+                Payment methods vary by location and amount.
             </small>
         </div>
     );
