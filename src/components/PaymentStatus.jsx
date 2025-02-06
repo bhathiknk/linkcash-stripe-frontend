@@ -45,25 +45,7 @@ function PaymentStatus() {
                     {heading}
                 </h2>
                 <p className="mb-5">{message}</p>
-                {isSuccess ? (
-                    <button
-                        className="btn btn-primary"
-                        onClick={() => {
-                            window.location.href = 'https://www.linkcash.com';
-                        }}
-                    >
-                        Go to LinkCash
-                    </button>
-                ) : (
-                    <button
-                        className="btn btn-secondary"
-                        onClick={() => {
-                            window.location.href = 'https://www.yourdomain.com/support';
-                        }}
-                    >
-                        Contact Support
-                    </button>
-                )}
+
             </div>
         </div>
     );
