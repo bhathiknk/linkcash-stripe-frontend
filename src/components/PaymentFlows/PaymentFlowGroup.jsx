@@ -6,18 +6,29 @@ import CheckoutForm from './CheckoutForm';
 import GroupPaymentDetails from '../PaymentDetailsPages/GroupPaymentDetails';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-const stripePromise = loadStripe('pk_test_51QMX8zCrXpZkt7Cpt7EYqVbgNP6Lm8N1iJ389ej6Wm0UHN5jEGzo0BHZWDGzc5bw3s7GaLGhOIifHgRPpZj3dhvQ00ZSJwQUA6');
+const stripePromise = loadStripe(
+    'pk_test_51QMX8zCrXpZkt7Cpt7EYqVbgNP6Lm8N1iJ389ej6Wm0UHN5jEGzo0BHZWDGzc5bw3s7GaLGhOIifHgRPpZj3dhvQ00ZSJwQUA6'
+);
 
 function PaymentFlowGroup() {
     const { linkId } = useParams();
     const navigate = useNavigate();
 
-    const [clientSecrets, setClientSecrets] = useState({}); // Cache client secret by memberPaymentId
+    const [clientSecrets, setClientSecrets] = useState({}); // Cache client secret per memberPaymentId
     const [paymentDetails, setPaymentDetails] = useState(null);
     const [selectedMember, setSelectedMember] = useState(null);
     const [errorMessage, setErrorMessage] = useState('');
 
-    // Fetch group payment details by linkId.
+    const containerStyle = {
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: '2rem',
+    };
+
+    // Always call your hooks unconditionally.
     useEffect(() => {
         if (linkId) {
             fetchPaymentDetails(linkId);
@@ -40,23 +51,18 @@ function PaymentFlowGroup() {
         }
     };
 
-    // Automatically select the first pending member if none is selected.
     useEffect(() => {
         if (paymentDetails && !selectedMember) {
-            const pendingMembers = paymentDetails.members.filter(member => !member.paid);
+            const pendingMembers = paymentDetails.members.filter((member) => !member.paid);
             if (pendingMembers.length > 0) {
                 setSelectedMember(pendingMembers[0]);
             }
         }
     }, [paymentDetails, selectedMember]);
 
-    // Once a member is selected, fetch the Stripe client secret if not already cached.
     useEffect(() => {
         if (selectedMember && paymentDetails) {
-            if (clientSecrets[selectedMember.memberPaymentId]) {
-                // Client secret already cached, do nothing.
-                return;
-            }
+            if (clientSecrets[selectedMember.memberPaymentId]) return; // Already cached.
             const payload = {
                 groupPaymentId: paymentDetails.groupPaymentId,
                 memberPaymentId: selectedMember.memberPaymentId,
@@ -70,19 +76,17 @@ function PaymentFlowGroup() {
         try {
             const apiUrl = 'http://localhost:8080/api/transactions/initiate';
             const requestBody = { paymentType, ...payload };
-
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody),
             });
-
             if (!response.ok) {
                 const errData = await response.json();
                 throw new Error(errData.error || 'Failed to initiate payment');
             }
             const data = await response.json();
-            setClientSecrets(prev => ({
+            setClientSecrets((prev) => ({
                 ...prev,
                 [payload.memberPaymentId]: data.clientSecret,
             }));
@@ -91,17 +95,9 @@ function PaymentFlowGroup() {
         }
     };
 
-    const containerStyle = {
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: '2rem',
-    };
-
     const currentClientSecret = selectedMember ? clientSecrets[selectedMember.memberPaymentId] : null;
 
+    // Instead of returning early, always render the full component and conditionally show UI.
     return (
         <div style={containerStyle}>
             {errorMessage ? (
@@ -113,57 +109,53 @@ function PaymentFlowGroup() {
                     </button>
                 </div>
             ) : paymentDetails ? (
-                <div
-                    className="card shadow"
-                    style={{
-                        border: 'none',
-                        borderRadius: '1rem',
-                        overflow: 'hidden',
-                        maxWidth: '900px',
-                        width: '100%',
-                    }}
-                >
-                    <div className="card-body row">
-                        <div className="col-12 col-md-6 mb-4 mb-md-0">
-                            <GroupPaymentDetails
-                                details={paymentDetails}
-                                selectedMember={selectedMember}
-                                // Allow manual override:
-                                onSelectMember={(member) => {
-                                    if (member.memberPaymentId !== selectedMember?.memberPaymentId) {
-                                        setSelectedMember(member);
-                                    }
-                                }}
-                            />
-                        </div>
-                        <div className="col-12 col-md-6">
-                            {paymentDetails.isCompleted ? (
-                                <div className="text-center mt-4">
-                                    <h4 className="text-success">Group Payment Complete</h4>
-                                    <p>All members have completed their payments.</p>
-                                </div>
-                            ) : currentClientSecret ? (
-                                <Elements stripe={stripePromise} options={{ clientSecret: currentClientSecret }}>
-                                    <CheckoutForm
-                                        onPaymentSuccess={() => navigate('/payment-status?status=success')}
-                                        onPaymentError={() => navigate('/payment-status?status=error')}
-                                    />
-                                </Elements>
-                            ) : (
-                                <div className="text-center mt-4">
-                                    {selectedMember ? (
-                                        <div>
-                                            <div className="spinner-border text-primary" role="status" />
-                                            <p>Initializing payment for {selectedMember.memberName}...</p>
-                                        </div>
-                                    ) : (
-                                        <p>Loading payment...</p>
-                                    )}
-                                </div>
-                            )}
+                paymentDetails.completed ? (  // <-- Updated condition: using 'completed'
+                    // If the payment is complete, show only the complete message.
+                    <div className="card shadow" style={{ border: 'none', borderRadius: '1rem', overflow: 'hidden', maxWidth: '600px', width: '100%' }}>
+                        <div className="card-body text-center">
+                            <h4 className="text-success">Group Payment Complete</h4>
+                            <p>All members have completed their payments.</p>
                         </div>
                     </div>
-                </div>
+                ) : (
+                    // Otherwise, show the payment details and the payment gateway.
+                    <div className="card shadow" style={{ border: 'none', borderRadius: '1rem', overflow: 'hidden', maxWidth: '900px', width: '100%' }}>
+                        <div className="card-body row">
+                            <div className="col-12 col-md-6 mb-4 mb-md-0">
+                                <GroupPaymentDetails
+                                    details={paymentDetails}
+                                    selectedMember={selectedMember}
+                                    onSelectMember={(member) => {
+                                        if (member.memberPaymentId !== selectedMember?.memberPaymentId) {
+                                            setSelectedMember(member);
+                                        }
+                                    }}
+                                />
+                            </div>
+                            <div className="col-12 col-md-6">
+                                {currentClientSecret ? (
+                                    <Elements stripe={stripePromise} options={{ clientSecret: currentClientSecret }}>
+                                        <CheckoutForm
+                                            onPaymentSuccess={() => navigate('/payment-status?status=success')}
+                                            onPaymentError={() => navigate('/payment-status?status=error')}
+                                        />
+                                    </Elements>
+                                ) : (
+                                    <div className="text-center mt-4">
+                                        {selectedMember ? (
+                                            <div>
+                                                <div className="spinner-border text-primary" role="status" />
+                                                <p>Initializing payment for {selectedMember.memberName}...</p>
+                                            </div>
+                                        ) : (
+                                            <p>Loading payment...</p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )
             ) : (
                 <div className="text-center mt-5">
                     <p>Loading payment details...</p>
