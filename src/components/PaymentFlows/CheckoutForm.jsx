@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useStripe, useElements, PaymentElement } from '@stripe/react-stripe-js';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import stripeLogo from './Assets/Powered by Stripe - blurple.svg'; // Ensure this file exists in your assets folder
+import stripeLogo from '../Assets/Powered by Stripe - blurple.svg'; // Ensure this file exists in your assets folder
 
 function CheckoutForm({ onPaymentSuccess, onPaymentError }) {
     const stripe = useStripe();

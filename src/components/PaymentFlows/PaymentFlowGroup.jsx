@@ -1,0 +1,176 @@
+import React, { useState, useEffect } from 'react';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+import { useNavigate, useParams } from 'react-router-dom';
+import CheckoutForm from './CheckoutForm';
+import GroupPaymentDetails from '../PaymentDetailsPages/GroupPaymentDetails';
+import 'bootstrap/dist/css/bootstrap.min.css';
+
+const stripePromise = loadStripe('pk_test_51QMX8zCrXpZkt7Cpt7EYqVbgNP6Lm8N1iJ389ej6Wm0UHN5jEGzo0BHZWDGzc5bw3s7GaLGhOIifHgRPpZj3dhvQ00ZSJwQUA6');
+
+function PaymentFlowGroup() {
+    const { linkId } = useParams();
+    const navigate = useNavigate();
+
+    const [clientSecrets, setClientSecrets] = useState({}); // Cache client secret by memberPaymentId
+    const [paymentDetails, setPaymentDetails] = useState(null);
+    const [selectedMember, setSelectedMember] = useState(null);
+    const [errorMessage, setErrorMessage] = useState('');
+
+    // Fetch group payment details by linkId.
+    useEffect(() => {
+        if (linkId) {
+            fetchPaymentDetails(linkId);
+        }
+    }, [linkId]);
+
+    const fetchPaymentDetails = async (linkId) => {
+        try {
+            const apiUrl = `http://localhost:8080/api/group-payment-links/link/${linkId}/details`;
+            const response = await fetch(apiUrl);
+            if (!response.ok) {
+                const errorData = await response.text();
+                throw new Error(errorData);
+            }
+            const data = await response.json();
+            console.log('Fetched Group Payment Details:', data);
+            setPaymentDetails(data);
+        } catch (error) {
+            setErrorMessage(error.message);
+        }
+    };
+
+    // Automatically select the first pending member if none is selected.
+    useEffect(() => {
+        if (paymentDetails && !selectedMember) {
+            const pendingMembers = paymentDetails.members.filter(member => !member.paid);
+            if (pendingMembers.length > 0) {
+                setSelectedMember(pendingMembers[0]);
+            }
+        }
+    }, [paymentDetails, selectedMember]);
+
+    // Once a member is selected, fetch the Stripe client secret if not already cached.
+    useEffect(() => {
+        if (selectedMember && paymentDetails) {
+            if (clientSecrets[selectedMember.memberPaymentId]) {
+                // Client secret already cached, do nothing.
+                return;
+            }
+            const payload = {
+                groupPaymentId: paymentDetails.groupPaymentId,
+                memberPaymentId: selectedMember.memberPaymentId,
+                amount: selectedMember.assignedAmount,
+            };
+            fetchClientSecret('group', payload);
+        }
+    }, [selectedMember, paymentDetails, clientSecrets]);
+
+    const fetchClientSecret = async (paymentType, payload) => {
+        try {
+            const apiUrl = 'http://localhost:8080/api/transactions/initiate';
+            const requestBody = { paymentType, ...payload };
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || 'Failed to initiate payment');
+            }
+            const data = await response.json();
+            setClientSecrets(prev => ({
+                ...prev,
+                [payload.memberPaymentId]: data.clientSecret,
+            }));
+        } catch (error) {
+            setErrorMessage(error.message);
+        }
+    };
+
+    const containerStyle = {
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: '2rem',
+    };
+
+    const currentClientSecret = selectedMember ? clientSecrets[selectedMember.memberPaymentId] : null;
+
+    return (
+        <div style={containerStyle}>
+            {errorMessage ? (
+                <div className="alert alert-danger" role="alert">
+                    <h2>Payment Link Unavailable</h2>
+                    <p>{errorMessage}</p>
+                    <button className="btn btn-primary" onClick={() => setErrorMessage('')}>
+                        Close
+                    </button>
+                </div>
+            ) : paymentDetails ? (
+                <div
+                    className="card shadow"
+                    style={{
+                        border: 'none',
+                        borderRadius: '1rem',
+                        overflow: 'hidden',
+                        maxWidth: '900px',
+                        width: '100%',
+                    }}
+                >
+                    <div className="card-body row">
+                        <div className="col-12 col-md-6 mb-4 mb-md-0">
+                            <GroupPaymentDetails
+                                details={paymentDetails}
+                                selectedMember={selectedMember}
+                                // Allow manual override:
+                                onSelectMember={(member) => {
+                                    if (member.memberPaymentId !== selectedMember?.memberPaymentId) {
+                                        setSelectedMember(member);
+                                    }
+                                }}
+                            />
+                        </div>
+                        <div className="col-12 col-md-6">
+                            {paymentDetails.isCompleted ? (
+                                <div className="text-center mt-4">
+                                    <h4 className="text-success">Group Payment Complete</h4>
+                                    <p>All members have completed their payments.</p>
+                                </div>
+                            ) : currentClientSecret ? (
+                                <Elements stripe={stripePromise} options={{ clientSecret: currentClientSecret }}>
+                                    <CheckoutForm
+                                        onPaymentSuccess={() => navigate('/payment-status?status=success')}
+                                        onPaymentError={() => navigate('/payment-status?status=error')}
+                                    />
+                                </Elements>
+                            ) : (
+                                <div className="text-center mt-4">
+                                    {selectedMember ? (
+                                        <div>
+                                            <div className="spinner-border text-primary" role="status" />
+                                            <p>Initializing payment for {selectedMember.memberName}...</p>
+                                        </div>
+                                    ) : (
+                                        <p>Loading payment...</p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className="text-center mt-5">
+                    <p>Loading payment details...</p>
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default PaymentFlowGroup;

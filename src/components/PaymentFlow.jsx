@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { useNavigate } from 'react-router-dom';
-import CheckoutForm from './CheckoutForm';
-import RegularPaymentDetails from './RegularPaymentDetails';
-import OneTimePaymentDetails from './OneTimePaymentDetails';
-import GroupPaymentDetails from './GroupPaymentDetails';
+import CheckoutForm from './PaymentFlows/CheckoutForm';
+import RegularPaymentDetails from './PaymentDetailsPages/RegularPaymentDetails';
+import OneTimePaymentDetails from './PaymentDetailsPages/OneTimePaymentDetails';
+import GroupPaymentDetails from './PaymentDetailsPages/GroupPaymentDetails';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const stripePromise = loadStripe('pk_test_51QMX8zCrXpZkt7Cpt7EYqVbgNP6Lm8N1iJ389ej6Wm0UHN5jEGzo0BHZWDGzc5bw3s7GaLGhOIifHgRPpZj3dhvQ00ZSJwQUA6');
@@ -26,9 +26,16 @@ function getLinkInfoFromUrl() {
 function ErrorModal({ message, onClose }) {
     return (
         <div style={{
-            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-            backgroundColor: 'rgba(255,255,255,0.95)', display: 'flex',
-            justifyContent: 'center', alignItems: 'center', zIndex: 9999
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(255,255,255,0.95)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999
         }}>
             <div style={{ textAlign: 'center', padding: '2rem' }}>
                 <h2 className="mb-3">Payment Link Unavailable</h2>
@@ -71,13 +78,13 @@ function PaymentFlow() {
                 throw new Error(errorData);
             }
             const data = await response.json();
+            console.log("Fetched Payment Details:", data);
             setPaymentDetails(data);
         } catch (error) {
             setErrorMessage(error.message);
         }
     };
 
-    // Unified function to fetch client secret from the new endpoint
     const fetchClientSecret = async (paymentType, payload) => {
         try {
             const apiUrl = 'http://localhost:8080/api/transactions/initiate';
@@ -100,18 +107,6 @@ function PaymentFlow() {
         }
     };
 
-    // For group payments, when a user selects their name.
-    const handleSelectMember = (member) => {
-        setSelectedMember(member);
-        const payload = {
-            groupPaymentId: paymentDetails.groupPaymentId,
-            memberPaymentId: member.memberPaymentId,
-            amount: member.assignedAmount
-        };
-        fetchClientSecret('group', payload);
-    };
-
-    // For one-time or regular payments.
     useEffect(() => {
         if (paymentDetails && !clientSecret && !isGroup) {
             const payload = isOneTime
@@ -129,9 +124,28 @@ function PaymentFlow() {
         }
     }, [paymentDetails, clientSecret, isGroup, isOneTime]);
 
+    useEffect(() => {
+        if (selectedMember && isGroup) {
+            fetchClientSecret('group', {
+                groupPaymentId: paymentDetails.groupPaymentId,
+                memberPaymentId: selectedMember.memberPaymentId,
+                amount: selectedMember.assignedAmount
+            });
+        }
+    }, [selectedMember]);
+
     const renderPaymentDetails = () => {
         if (isOneTime) return <OneTimePaymentDetails details={paymentDetails} />;
-        if (isGroup) return <GroupPaymentDetails details={paymentDetails} onSelectMember={handleSelectMember} />;
+        if (isGroup)
+            return (
+                <GroupPaymentDetails
+                    details={paymentDetails}
+                    selectedMember={selectedMember}
+                    onSelectMember={(member) => {
+                        setSelectedMember(member);
+                    }}
+                />
+            );
         return <RegularPaymentDetails details={paymentDetails} />;
     };
 
@@ -139,44 +153,57 @@ function PaymentFlow() {
         <div style={{
             minHeight: '100vh',
             background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
-            display: 'flex', justifyContent: 'center', alignItems: 'center',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
             padding: '2rem'
         }}>
             {errorMessage ? (
                 <ErrorModal message={errorMessage} onClose={() => setErrorMessage('')} />
             ) : paymentDetails ? (
                 <div className="card shadow" style={{
-                    border: 'none', borderRadius: '1rem', overflow: 'hidden',
-                    maxWidth: '900px', width: '100%'
+                    border: 'none',
+                    borderRadius: '1rem',
+                    overflow: 'hidden',
+                    maxWidth: '900px',
+                    width: '100%'
                 }}>
                     <div className="card-body row">
-                        <div className="col-12 col-md-6 mb-4 mb-md-0">{renderPaymentDetails()}</div>
+                        <div className="col-12 col-md-6 mb-4 mb-md-0">
+                            {renderPaymentDetails()}
+                        </div>
                         <div className="col-12 col-md-6">
-                            {clientSecret && (isGroup ? selectedMember : true) ? (
-                                <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
-                                    <CheckoutForm
-                                        onPaymentSuccess={() => navigate('/payment-status?status=success')}
-                                        onPaymentError={() => navigate('/payment-status?status=error')}
-                                    />
-                                </Elements>
-                            ) : (
+                            {isGroup && paymentDetails.isCompleted ? (
                                 <div className="text-center mt-4">
-                                    {isGroup ? (
-                                        <p>Please select your name above to proceed with payment.</p>
-                                    ) : (
-                                        <div>
-                                            <div className="spinner-border text-primary" role="status" />
-                                            <p>Initializing payment...</p>
-                                        </div>
-                                    )}
+                                    <h4 className="text-success">Group Payment Complete</h4>
+                                    <p>All members have completed their payments.</p>
                                 </div>
+                            ) : (
+                                clientSecret ? (
+                                    <Elements stripe={stripePromise} options={{ clientSecret }}>
+                                        <CheckoutForm
+                                            onPaymentSuccess={() => navigate('/payment-status?status=success')}
+                                            onPaymentError={() => navigate('/payment-status?status=error')}
+                                        />
+                                    </Elements>
+                                ) : (
+                                    <div className="text-center mt-4">
+                                        {isGroup && !selectedMember ? (
+                                            <p>Please select your name to proceed with payment.</p>
+                                        ) : (
+                                            <div>
+                                                <div className="spinner-border text-primary" role="status" />
+                                                <p>Initializing payment...</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )
                             )}
                         </div>
                     </div>
                 </div>
             ) : (
                 <div className="text-center mt-5">
-                    <div className="spinner-border text-primary" role="status" />
                     <p>Loading payment details...</p>
                 </div>
             )}
