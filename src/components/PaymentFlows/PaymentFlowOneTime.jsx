@@ -91,37 +91,44 @@ function PaymentFlowOneTime() {
                     </button>
                 </div>
             ) : paymentDetails ? (
-                <div
-                    className="card shadow"
-                    style={{
-                        border: 'none',
-                        borderRadius: '1rem',
-                        overflow: 'hidden',
-                        maxWidth: '900px',
-                        width: '100%',
-                    }}
-                >
-                    <div className="card-body row">
-                        <div className="col-12 col-md-6 mb-4 mb-md-0">
-                            <OneTimePaymentDetails details={paymentDetails} />
-                        </div>
-                        <div className="col-12 col-md-6">
-                            {clientSecret ? (
-                                <Elements stripe={stripePromise} options={{ clientSecret }}>
-                                    <CheckoutForm
-                                        onPaymentSuccess={() => navigate('/payment-status?status=success')}
-                                        onPaymentError={() => navigate('/payment-status?status=error')}
-                                    />
-                                </Elements>
-                            ) : (
-                                <div className="text-center mt-4">
-                                    <div className="spinner-border text-primary" role="status" />
-                                    <p>Initializing payment...</p>
-                                </div>
-                            )}
+                paymentDetails.used ? (
+                    <div className="card shadow text-center p-4">
+                        <h4 className="text-danger">This one-time payment link has already been used.</h4>
+                        <p>It’s no longer valid for a second transaction.</p>
+                    </div>
+                ) : (
+                    <div
+                        className="card shadow"
+                        style={{
+                            border: 'none',
+                            borderRadius: '1rem',
+                            overflow: 'hidden',
+                            maxWidth: '900px',
+                            width: '100%',
+                        }}
+                    >
+                        <div className="card-body row">
+                            <div className="col-12 col-md-6 mb-4 mb-md-0">
+                                <OneTimePaymentDetails details={paymentDetails} />
+                            </div>
+                            <div className="col-12 col-md-6">
+                                {clientSecret ? (
+                                    <Elements stripe={stripePromise} options={{ clientSecret }}>
+                                        <CheckoutForm
+                                            onPaymentSuccess={() => navigate('/payment-status?status=success')}
+                                            onPaymentError={() => navigate('/payment-status?status=error')}
+                                        />
+                                    </Elements>
+                                ) : (
+                                    <div className="text-center mt-4">
+                                        <div className="spinner-border text-primary" role="status" />
+                                        <p>Initializing payment...</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
+                )
             ) : (
                 <div className="text-center mt-5">
                     <p>Loading payment details...</p>

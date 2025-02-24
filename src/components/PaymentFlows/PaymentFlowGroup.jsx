@@ -14,7 +14,7 @@ function PaymentFlowGroup() {
     const { linkId } = useParams();
     const navigate = useNavigate();
 
-    const [clientSecrets, setClientSecrets] = useState({}); // Cache client secret per memberPaymentId
+    const [clientSecrets, setClientSecrets] = useState({});
     const [paymentDetails, setPaymentDetails] = useState(null);
     const [selectedMember, setSelectedMember] = useState(null);
     const [errorMessage, setErrorMessage] = useState('');
@@ -28,7 +28,6 @@ function PaymentFlowGroup() {
         padding: '2rem',
     };
 
-    // Always call your hooks unconditionally.
     useEffect(() => {
         if (linkId) {
             fetchPaymentDetails(linkId);
@@ -61,8 +60,8 @@ function PaymentFlowGroup() {
     }, [paymentDetails, selectedMember]);
 
     useEffect(() => {
-        if (selectedMember && paymentDetails) {
-            if (clientSecrets[selectedMember.memberPaymentId]) return; // Already cached.
+        // If we have a selectedMember and no clientSecret for them, fetch it.
+        if (selectedMember && paymentDetails && !clientSecrets[selectedMember.memberPaymentId]) {
             const payload = {
                 groupPaymentId: paymentDetails.groupPaymentId,
                 memberPaymentId: selectedMember.memberPaymentId,
@@ -97,7 +96,6 @@ function PaymentFlowGroup() {
 
     const currentClientSecret = selectedMember ? clientSecrets[selectedMember.memberPaymentId] : null;
 
-    // Instead of returning early, always render the full component and conditionally show UI.
     return (
         <div style={containerStyle}>
             {errorMessage ? (
@@ -109,8 +107,7 @@ function PaymentFlowGroup() {
                     </button>
                 </div>
             ) : paymentDetails ? (
-                paymentDetails.completed ? (  // <-- Updated condition: using 'completed'
-                    // If the payment is complete, show only the complete message.
+                paymentDetails.completed ? (
                     <div className="card shadow" style={{ border: 'none', borderRadius: '1rem', overflow: 'hidden', maxWidth: '600px', width: '100%' }}>
                         <div className="card-body text-center">
                             <h4 className="text-success">Group Payment Complete</h4>
@@ -118,7 +115,6 @@ function PaymentFlowGroup() {
                         </div>
                     </div>
                 ) : (
-                    // Otherwise, show the payment details and the payment gateway.
                     <div className="card shadow" style={{ border: 'none', borderRadius: '1rem', overflow: 'hidden', maxWidth: '900px', width: '100%' }}>
                         <div className="card-body row">
                             <div className="col-12 col-md-6 mb-4 mb-md-0">
