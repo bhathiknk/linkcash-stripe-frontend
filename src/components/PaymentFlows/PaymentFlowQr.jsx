@@ -1,26 +1,34 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+import CheckoutForm from './CheckoutForm';
+import QRpaymentDetails from '../PaymentDetailsPages/QRpaymentDetails';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-/**
- * PaymentFlowQr.jsx
- * Example usage: <Route path="/bill/payment/:qrCode" element={<PaymentFlowQr />} />
- */
-function PaymentFlowQr() {
-    // 1) Get the qrCode from the URL
-    const { qrCode } = useParams();
+// Use your actual publishable Stripe key here
+const stripePromise = loadStripe('pk_test_51QMX8zCrXpZkt7Cpt7EYqVbgNP6Lm8N1iJ389ej6Wm0UHN5jEGzo0BHZWDGzc5bw3s7GaLGhOIifHgRPpZj3dhvQ00ZSJwQUA6');
 
-    // 2) Local states
+function PaymentFlowQr() {
+    const { qrCode } = useParams();
+    const navigate = useNavigate();
+
+    // Shop & Bill states
     const [shopData, setShopData] = useState(null);
+    const [billData, setBillData] = useState(null);
+
+    // UI states
     const [loading, setLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState('');
 
-    // For Bill Payment
+    // For PIN modal
     const [showPinModal, setShowPinModal] = useState(false);
     const [pin, setPin] = useState('');
-    const [billData, setBillData] = useState(null);
 
-    // 3) On mount, fetch the shop data by qrCode
+    // Stripe states
+    const [clientSecret, setClientSecret] = useState(null);
+
+    // 1) Fetch the Shop data by qrCode
     useEffect(() => {
         const fetchShopData = async () => {
             try {
@@ -43,7 +51,7 @@ function PaymentFlowQr() {
         }
     }, [qrCode]);
 
-    // 4) Function to call the GET /api/bills/{pin} endpoint
+    // 2) Fetch the Bill data by PIN
     const handleFetchBill = async () => {
         try {
             const response = await fetch(`http://localhost:8080/api/bills/${pin}`);
@@ -53,25 +61,58 @@ function PaymentFlowQr() {
             }
             const data = await response.json();
             setBillData(data);
-            setShowPinModal(false); // close modal
+            setShowPinModal(false);
             setErrorMessage('');
         } catch (error) {
             setErrorMessage(error.message);
         }
     };
 
-    // 5) Render states: Loading, Error, or main UI
+    // 3) Once we have the Bill, fetch Stripe's clientSecret using the "shop" payment flow
+    useEffect(() => {
+        if (billData && !clientSecret && shopData) {
+            // Build the payload for your backend's /api/transactions/initiate
+            // Using "paymentType: shop"
+            const payload = {
+                paymentType: 'shop',
+                shopId: shopData.shopId,    // from the shop data
+                billId: billData.billId,
+                amount: billData.total
+            };
+            fetchClientSecret(payload);
+        }
+    }, [billData, clientSecret, shopData]);
+
+    const fetchClientSecret = async (payload) => {
+        try {
+            const apiUrl = 'http://localhost:8080/api/transactions/initiate';
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || 'Failed to initiate payment');
+            }
+            const data = await response.json();
+            setClientSecret(data.clientSecret);
+        } catch (error) {
+            setErrorMessage(error.message);
+        }
+    };
+
+    // 4) Main UI
+
+    // Loading or error for shop
     if (loading) {
         return (
             <div className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
-                <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                </div>
+                <div className="spinner-border text-primary" role="status"></div>
                 <p className="mt-3 text-muted">Loading shop data...</p>
             </div>
         );
     }
-
     if (errorMessage && !shopData) {
         return (
             <div className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
@@ -82,7 +123,6 @@ function PaymentFlowQr() {
             </div>
         );
     }
-
     if (!shopData) {
         return (
             <div className="text-center" style={{ minHeight: '100vh', padding: '2rem' }}>
@@ -91,15 +131,91 @@ function PaymentFlowQr() {
         );
     }
 
+    // If no bill yet, user must click "Pay for Bill" and enter PIN
+    // Once bill is loaded, show the details & potential payment flow
+    const renderPaymentFlow = () => {
+        // If we have an error while fetching the Bill, show an alert (billData === null)
+        if (errorMessage && !billData) {
+            return (
+                <div className="alert alert-danger" style={{ maxWidth: '600px' }}>
+                    {errorMessage}
+                </div>
+            );
+        }
+
+        // If we haven't fetched a Bill yet, just show nothing or a helpful note
+        if (!billData) {
+            return null; // or <p>Please enter PIN to retrieve Bill</p>
+        }
+
+        // If Bill is found, check if it's used or paid, etc. (optional)
+        // For now, we let them proceed if "status" = PENDING
+        if (billData.status === 'PAID') {
+            return (
+                <div className="card shadow text-center p-4">
+                    <h4 className="text-danger">This Bill is already paid.</h4>
+                </div>
+            );
+        }
+
+        // If not paid => display the Bill UI and the Stripe form
+        return (
+            <div
+                className="card shadow"
+                style={{
+                    border: 'none',
+                    borderRadius: '1rem',
+                    overflow: 'hidden',
+                    maxWidth: '900px',
+                    width: '100%',
+                    marginBottom: '2rem'
+                }}
+            >
+                <div className="card-body row">
+                    {/* Left Column: Bill & Shop details */}
+                    <div className="col-12 col-md-6 mb-4 mb-md-0">
+                        <QRpaymentDetails billData={billData} shopData={shopData} />
+                    </div>
+
+                    {/* Right Column: Stripe Payment */}
+                    <div className="col-12 col-md-6">
+                        {clientSecret ? (
+                            <Elements stripe={stripePromise} options={{ clientSecret }}>
+                                <CheckoutForm
+                                    onPaymentSuccess={() => navigate('/payment-status?status=success')}
+                                    onPaymentError={() => navigate('/payment-status?status=error')}
+                                />
+                            </Elements>
+                        ) : (
+                            <div className="text-center mt-4">
+                                <div className="spinner-border text-primary" role="status" />
+                                <p>Initializing payment...</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
-        <div className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
-            {/* --- SHOP INFO CARD --- */}
+        <div
+            style={{
+                minHeight: '100vh',
+                background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '2rem'
+            }}
+        >
+            {/* ---------- SHOP INFO CARD ---------- */}
             <div
                 className="card shadow mb-4"
                 style={{ border: 'none', borderRadius: '1rem', overflow: 'hidden', maxWidth: '600px', width: '100%' }}
             >
                 <div className="card-body">
-                    <h2 className="card-title text-primary mb-3">Shop Info</h2>
+                    <h2 className="card-title text-primary mb-4 text-center">Shop Information</h2>
                     <ul className="list-group list-group-flush">
                         <li className="list-group-item">
                             <strong>Shop ID:</strong> {shopData.shopId}
@@ -112,10 +228,9 @@ function PaymentFlowQr() {
                         </li>
                     </ul>
 
-                    {/* --- PAY FOR BILL BUTTON --- */}
                     <div className="mt-4 text-center">
                         <button
-                            className="btn btn-success"
+                            className="btn btn-success btn-lg"
                             onClick={() => {
                                 setShowPinModal(true);
                                 setPin('');
@@ -129,51 +244,10 @@ function PaymentFlowQr() {
                 </div>
             </div>
 
-            {/* --- ERROR ALERT (for Bill fetching) --- */}
-            {errorMessage && billData === null && (
-                <div className="alert alert-danger" style={{ maxWidth: '600px' }}>
-                    {errorMessage}
-                </div>
-            )}
+            {/* ---------- BILL + STRIPE FLOW ---------- */}
+            {renderPaymentFlow()}
 
-            {/* --- SHOW BILL DATA IF AVAILABLE --- */}
-            {billData && (
-                <div
-                    className="card shadow"
-                    style={{ border: 'none', borderRadius: '1rem', overflow: 'hidden', maxWidth: '600px', width: '100%' }}
-                >
-                    <div className="card-body">
-                        <h2 className="card-title text-primary mb-3">Bill Details</h2>
-                        <ul className="list-group list-group-flush">
-                            <li className="list-group-item">
-                                <strong>Bill ID:</strong> {billData.billId}
-                            </li>
-                            <li className="list-group-item">
-                                <strong>Customer Name:</strong> {billData.customerName}
-                            </li>
-                            <li className="list-group-item">
-                                <strong>Total:</strong> {billData.total}
-                            </li>
-                            <li className="list-group-item">
-                                <strong>Status:</strong> {billData.status}
-                            </li>
-                            {/* Items */}
-                            <li className="list-group-item">
-                                <strong>Items:</strong>
-                                <ul>
-                                    {billData.items?.map((item) => (
-                                        <li key={item.itemId}>
-                                            {item.itemName} - x{item.quantity} @ £{item.price}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            )}
-
-            {/* --- PIN MODAL (popup) --- */}
+            {/* ---------- PIN MODAL (popup) ---------- */}
             {showPinModal && (
                 <div
                     style={{
@@ -190,15 +264,15 @@ function PaymentFlowQr() {
                     }}
                 >
                     <div
-                        className="card"
+                        className="card shadow"
                         style={{ width: '400px', padding: '1.5rem', borderRadius: '0.5rem', position: 'relative' }}
                     >
-                        <h4 className="mb-3">Enter PIN</h4>
+                        <h4 className="mb-3 text-center">Enter Your Bill PIN</h4>
                         <input
                             type="text"
                             value={pin}
                             onChange={(e) => setPin(e.target.value)}
-                            className="form-control mb-3"
+                            className="form-control mb-4"
                             placeholder="Enter Bill PIN"
                         />
                         <div className="d-flex justify-content-end">
