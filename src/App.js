@@ -5,6 +5,7 @@ import PaymentFlowOneTime from './components/PaymentFlows/PaymentFlowOneTime';
 import PaymentFlowGroup from './components/PaymentFlows/PaymentFlowGroup';
 import PaymentStatus from './components/PaymentStatus';
 import PaymentFlowQr from './components/PaymentFlows/PaymentFlowQr';
+import PaymentSuccess from './components/PaymentSuccess';
 
 function App() {
     return (
@@ -14,8 +15,11 @@ function App() {
             <Route path="/group-payment/:linkId" element={<PaymentFlowGroup />} />
             <Route path="/payment-status" element={<PaymentStatus />} />
 
-            {/* NEW route for scanning QR code /bill/payment/:qrCode */}
+            {/*route for scanning QR code /bill/payment/:qrCode */}
             <Route path="/bill/payment/:qrCode" element={<PaymentFlowQr />} />
+
+            {/* Add a route for PaymentSuccess */}
+            <Route path="/payment-success" element={<PaymentSuccess />} />
 
         </Routes>
     );

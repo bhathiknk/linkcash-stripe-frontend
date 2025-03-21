@@ -182,7 +182,7 @@ function PaymentFlowQr() {
                         {clientSecret ? (
                             <Elements stripe={stripePromise} options={{ clientSecret }}>
                                 <CheckoutForm
-                                    onPaymentSuccess={() => navigate('/payment-status?status=success')}
+                                    onPaymentSuccess={() => navigate(`/payment-success?billId=${billData.billId}`)}
                                     onPaymentError={() => navigate('/payment-status?status=error')}
                                 />
                             </Elements>
