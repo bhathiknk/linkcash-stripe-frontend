@@ -6,7 +6,8 @@ import PaymentFlowGroup from './components/PaymentFlows/PaymentFlowGroup';
 import PaymentStatus from './components/PaymentStatus';
 import PaymentFlowQr from './components/PaymentFlows/PaymentFlowQr';
 import PaymentSuccess from './components/PaymentSuccess';
-import OneTimeSuccess from './components/OneTimeSuccess'
+import OneTimeSuccess from './components/SuccessMassage/OneTimeSuccess'
+import GroupSuccess from './components/SuccessMassage/GroupSuccess';
 
 function App() {
     return (
@@ -23,6 +24,8 @@ function App() {
             <Route path="/payment-success" element={<PaymentSuccess />} />
 
             <Route path="/one-time-success/:linkId" element={<OneTimeSuccess />} />
+
+            <Route path="/group-success" element={<GroupSuccess />} />
 
         </Routes>
     );

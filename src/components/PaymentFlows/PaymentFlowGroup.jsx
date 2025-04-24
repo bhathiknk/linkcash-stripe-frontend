@@ -132,7 +132,12 @@ function PaymentFlowGroup() {
                                 {currentClientSecret ? (
                                     <Elements stripe={stripePromise} options={{ clientSecret: currentClientSecret }}>
                                         <CheckoutForm
-                                            onPaymentSuccess={() => navigate('/payment-status?status=success')}
+                                            onPaymentSuccess={() => {
+                                                navigate(
+                                                    `/group-success?groupPaymentId=${paymentDetails.groupPaymentId}&memberPaymentId=${selectedMember.memberPaymentId}`
+                                                );
+
+                                            }}
                                             onPaymentError={() => navigate('/payment-status?status=error')}
                                         />
                                     </Elements>
@@ -162,3 +167,5 @@ function PaymentFlowGroup() {
 }
 
 export default PaymentFlowGroup;
+
+
