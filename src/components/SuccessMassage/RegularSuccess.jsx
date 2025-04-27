@@ -18,6 +18,7 @@ export default function RegularSuccess() {
     const [data, setData] = useState(null);
     const [error, setError] = useState('');
     const [showConfetti, setShowConfetti] = useState(true);
+    const [loading, setLoading] = useState(true); // New
 
     useEffect(() => {
         if (!paymentIntentId) {
@@ -25,16 +26,32 @@ export default function RegularSuccess() {
             return;
         }
 
-        fetch(`http://localhost:8080/api/payment-links/${linkId}/web?paymentIntentId=${paymentIntentId}`)
-            .then(res => {
-                if (!res.ok) throw new Error('Unable to load payment info');
-                return res.json();
-            })
-            .then(json => {
-                setData(json);
-                setTimeout(() => setShowConfetti(false), 5000); // 🎉 confetti disappears after 5s
-            })
-            .catch(e => setError(e.message));
+        let attempts = 0;
+        const maxAttempts = 5;
+
+        const fetchData = async () => {
+            try {
+                const res = await fetch(
+                    `http://localhost:8080/api/payment-links/${linkId}/web?paymentIntentId=${paymentIntentId}`
+                );
+                if (!res.ok) throw new Error('Server not ready');
+                const json = await res.json();
+                setTimeout(() => {
+                    setData(json);
+                    setLoading(false);
+                    setTimeout(() => setShowConfetti(false), 5000);
+                }, 5000); // Wait 5s before showing receipt
+            } catch (e) {
+                if (attempts < maxAttempts) {
+                    attempts++;
+                    setTimeout(fetchData, 1000);
+                } else {
+                    setError('Unable to load payment info. Please try again.');
+                }
+            }
+        };
+
+        fetchData();
     }, [linkId, paymentIntentId]);
 
     useEffect(() => {
@@ -59,28 +76,27 @@ export default function RegularSuccess() {
 
     if (error) {
         return (
-            <div className="d-flex vh-100 justify-content-center align-items-center" style={{ backgroundColor: '#E3F2FD' }}>
+            <div className="d-flex vh-100 justify-content-center align-items-center gradient-bg">
                 <div className="alert alert-danger text-center">{error}</div>
             </div>
         );
     }
 
-    if (!data) {
+    if (loading) {
         return (
-            <div className="d-flex vh-100 justify-content-center align-items-center" style={{ backgroundColor: '#E3F2FD' }}>
+            <div className="d-flex vh-100 justify-content-center align-items-center gradient-bg">
                 <div className="spinner-border text-primary" role="status" />
+                <p className="text-primary mt-3">Finalizing payment...</p>
             </div>
         );
     }
 
     return (
         <div
-            className="d-flex flex-column justify-content-center align-items-center min-vh-100"
-            style={{
-                background: 'linear-gradient(135deg, #E3F2FD 0%, #ffffff 100%)',
-                padding: '1rem',
-            }}
+            className="d-flex flex-column justify-content-center align-items-center min-vh-100 gradient-bg"
+            style={{ padding: '1rem' }}
         >
+            <div className="blob d-none d-sm-block" />
             {showConfetti && <Confetti width={window.innerWidth} height={window.innerHeight} />}
 
             <div
@@ -130,12 +146,14 @@ export default function RegularSuccess() {
                     >
                         <FaDownload className="me-2" /> Download Receipt
                     </button>
-
                 </div>
             </div>
 
-            {/* Animations */}
+            {/* Styles */}
             <style>{`
+                .gradient-bg {
+                    background: linear-gradient(135deg, #83B6B9 0%, #E3F2FD 50%, #0054FF 100%);
+                }
                 @keyframes bounce {
                     0%, 100% { transform: scale(1); }
                     40% { transform: scale(1.19); }
@@ -149,6 +167,20 @@ export default function RegularSuccess() {
                     justify-content: center;
                     align-items: center;
                     animation: bounce 5s infinite;
+                }
+                .blob {
+                    position: absolute;
+                    width: 60vw;
+                    height: 60vw;
+                    max-width: 500px;
+                    max-height: 500px;
+                    background: radial-gradient(circle at 30% 30%, #ffffff55 0%, #ffffff00 70%);
+                    filter: blur(90px);
+                    animation: blobFloat 12s ease-in-out infinite alternate;
+                }
+                @keyframes blobFloat {
+                    from { transform: translate(-25%, -30%) scale(1); }
+                    to { transform: translate(15%, 10%) scale(1.15); }
                 }
             `}</style>
         </div>

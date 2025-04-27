@@ -1,8 +1,7 @@
-/* CheckoutForm.jsx */
 import React, { useState } from 'react';
 import { useStripe, useElements, PaymentElement } from '@stripe/react-stripe-js';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import stripeLogo from '../Assets/Powered by Stripe - blurple.svg'; // Ensure this file exists in your assets folder
+import stripeLogo from '../Assets/Powered by Stripe - blurple.svg';
 
 function CheckoutForm({ onPaymentSuccess, onPaymentError }) {
     const stripe = useStripe();
@@ -13,10 +12,9 @@ function CheckoutForm({ onPaymentSuccess, onPaymentError }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!stripe || !elements) {
-            setMessage('Stripe.js has not loaded yet. Please try again.');
+            setMessage('Stripe.js has not loaded yet.');
             return;
         }
-
         setIsProcessing(true);
 
         const { error, paymentIntent } = await stripe.confirmPayment({
@@ -33,61 +31,40 @@ function CheckoutForm({ onPaymentSuccess, onPaymentError }) {
         }
 
         if (paymentIntent && paymentIntent.status === 'succeeded') {
-            setMessage('Payment successful! Your transaction will be processed.');
-            if (onPaymentSuccess) onPaymentSuccess(paymentIntent.id);  // ✅ PASS paymentIntent.id here
+            setMessage('Payment successful!');
+            if (onPaymentSuccess) onPaymentSuccess(paymentIntent.id);
         } else {
-            setMessage('Payment failed. Please try again.');
+            setMessage('Payment failed.');
             if (onPaymentError) onPaymentError();
         }
         setIsProcessing(false);
     };
 
-    // Inline styles for CheckoutForm container and payment element wrapper
-    const checkoutFormWrapperStyles = {
-        background: '#ffffff',
-        padding: '2rem',
-        borderRadius: '0.5rem',
-        boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)'
-    };
-
-    const paymentElementWrapperStyles = {
-        marginBottom: '1rem'
-    };
-
     return (
-        <div style={checkoutFormWrapperStyles}>
-            <h4 className="text-center mb-3">Secure Payment</h4>
+        <div>
+            <h4 className="text-center mb-3 text-primary">Secure Payment</h4>
             <form onSubmit={handleSubmit}>
-                <div style={paymentElementWrapperStyles} className="mb-3">
+                <div className="mb-3">
                     <PaymentElement />
                 </div>
                 <button
                     type="submit"
                     disabled={isProcessing || !stripe || !elements}
-                    className="btn btn-primary w-100"
+                    className="btn btn-primary w-100 fw-bold"
                 >
-                    {isProcessing ? 'Processing...' : 'Pay Now'}
+                    {isProcessing ? 'Processing...' : 'Pay £ Now'}
                 </button>
             </form>
 
             {message && (
-                <div
-                    className={`alert mt-3 ${message.includes('successful') ? 'alert-success' : 'alert-danger'}`}
-                >
+                <div className={`alert mt-3 ${message.includes('successful') ? 'alert-success' : 'alert-danger'}`}>
                     {message}
                 </div>
             )}
 
-            <small className="text-muted d-block text-center mt-2">
-                Payment methods vary by location and amount.
-            </small>
-
             <div className="text-center mt-3">
-                <img
-                    src={stripeLogo}
-                    alt="Powered by Stripe"
-                    style={{ height: '24px', verticalAlign: 'middle' }}
-                />
+                <img src={stripeLogo} alt="Powered by Stripe" style={{ height: '24px', verticalAlign: 'middle' }} />
+
             </div>
         </div>
     );
