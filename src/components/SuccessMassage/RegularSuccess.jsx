@@ -1,33 +1,38 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { FaCheckCircle, FaDownload } from 'react-icons/fa';
 import html2canvas from 'html2canvas';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 export default function RegularSuccess() {
     const { linkId } = useParams();
+    const { search } = useLocation();
     const navigate = useNavigate();
     const receiptRef = useRef(null);
+
+    const params = new URLSearchParams(search);
+    const paymentIntentId = params.get('paymentIntentId');
 
     const [data, setData] = useState(null);
     const [error, setError] = useState('');
 
     useEffect(() => {
-        if (linkId) {
-            fetch(`http://localhost:8080/api/payment-links/${linkId}/web`)
-                .then(res => {
-                    if (!res.ok) throw new Error('Unable to load payment info');
-                    return res.json();
-                })
-                .then(json => {
-                    console.log('Fetched Payment Success Data:', json);
-                    setData(json);
-                })
-                .catch(e => setError(e.message));
+        if (!paymentIntentId) {
+            setError('Missing Payment Intent ID.');
+            return;
         }
-    }, [linkId]);
 
-    // Prevent back navigation
+        fetch(`http://localhost:8080/api/payment-links/${linkId}/web?paymentIntentId=${paymentIntentId}`)
+            .then(res => {
+                if (!res.ok) throw new Error('Unable to load payment info');
+                return res.json();
+            })
+            .then(json => {
+                setData(json);
+            })
+            .catch(e => setError(e.message));
+    }, [linkId, paymentIntentId]);
+
     useEffect(() => {
         window.history.pushState(null, '', window.location.href);
         const onBack = () => navigate('/', { replace: true });
@@ -69,12 +74,7 @@ export default function RegularSuccess() {
             <div
                 ref={receiptRef}
                 className="card shadow-lg px-4 py-5"
-                style={{
-                    maxWidth: '450px',
-                    width: '100%',
-                    borderRadius: '1rem',
-                    background: '#fff'
-                }}
+                style={{ maxWidth: '450px', width: '100%', borderRadius: '1rem', background: '#fff' }}
             >
                 <div className="text-center mb-4">
                     <FaCheckCircle size={50} className="text-success mb-3" />
@@ -97,7 +97,7 @@ export default function RegularSuccess() {
                 <div className="mb-4">
                     <h5 className="text-primary">Transaction</h5>
                     <p><strong>Stripe Tx ID:</strong> <span className="text-break">
-                        {data.stripeTransactionId ? data.stripeTransactionId : 'N/A'}
+                        {data.stripeTransactionId || 'N/A'}
                     </span></p>
                 </div>
 
@@ -105,7 +105,6 @@ export default function RegularSuccess() {
                     <button className="btn btn-outline-primary" onClick={handleDownload}>
                         <FaDownload className="me-1" /> Download Receipt
                     </button>
-
                 </div>
             </div>
         </div>

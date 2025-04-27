@@ -34,7 +34,7 @@ function CheckoutForm({ onPaymentSuccess, onPaymentError }) {
 
         if (paymentIntent && paymentIntent.status === 'succeeded') {
             setMessage('Payment successful! Your transaction will be processed.');
-            if (onPaymentSuccess) onPaymentSuccess();
+            if (onPaymentSuccess) onPaymentSuccess(paymentIntent.id);  // ✅ PASS paymentIntent.id here
         } else {
             setMessage('Payment failed. Please try again.');
             if (onPaymentError) onPaymentError();
