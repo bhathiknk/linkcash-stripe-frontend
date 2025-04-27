@@ -1,7 +1,9 @@
+// src/components/GroupSuccess.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FaDownload, FaCheckCircle } from 'react-icons/fa';
 import html2canvas from 'html2canvas';
+import Confetti from 'react-confetti';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 export default function GroupSuccess() {
@@ -15,46 +17,24 @@ export default function GroupSuccess() {
 
     const [data, setData] = useState(null);
     const [error, setError] = useState('');
+    const [showConfetti, setShowConfetti] = useState(true);
 
     useEffect(() => {
-        let isMounted = true;
-        let attempts = 0;
-        const maxAttempts = 15;
+        if (!gpId || !mId) {
+            setError('Missing identifiers');
+            return;
+        }
 
-        const pollData = async () => {
-            if (!gpId || !mId) {
-                setError('Missing identifiers');
-                return;
-            }
-
-            attempts += 1;
-            try {
-                const res = await fetch(
-                    `http://localhost:8080/api/group-payment-links/${gpId}/member/${mId}/web`
-                );
-                if (res.ok) {
-                    const json = await res.json();
-                    if (isMounted) setData(json);
-                } else {
-                    if (attempts < maxAttempts) {
-                        setTimeout(pollData, 1000);
-                    } else {
-                        throw new Error('Failed to load transaction details.');
-                    }
-                }
-            } catch (e) {
-                if (attempts < maxAttempts) {
-                    setTimeout(pollData, 1000);
-                } else {
-                    if (isMounted) setError(e.message);
-                }
-            }
-        };
-
-        pollData();
-        return () => {
-            isMounted = false;
-        };
+        fetch(`http://localhost:8080/api/group-payment-links/${gpId}/member/${mId}/web`)
+            .then(res => {
+                if (!res.ok) throw new Error('Unable to load group payment details.');
+                return res.json();
+            })
+            .then(json => {
+                setData(json);
+                setTimeout(() => setShowConfetti(false), 5000);
+            })
+            .catch(e => setError(e.message));
     }, [gpId, mId]);
 
     useEffect(() => {
@@ -66,21 +46,17 @@ export default function GroupSuccess() {
 
     const handleDownload = async () => {
         if (!receiptRef.current) return;
-        try {
-            const canvas = await html2canvas(receiptRef.current);
-            const link = document.createElement('a');
-            link.download = `receipt_group_${gpId}_${mId}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        } catch (e) {
-            console.error('Download failed', e);
-        }
+        const canvas = await html2canvas(receiptRef.current, { scale: 2 });
+        const link = document.createElement('a');
+        link.download = `receipt_group_${gpId}_${mId}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
     };
 
     if (error) {
         return (
-            <div className="d-flex vh-100 justify-content-center align-items-center bg-danger-subtle">
-                <div className="alert alert-danger text-center shadow-lg p-4 rounded">{error}</div>
+            <div className="d-flex vh-100 justify-content-center align-items-center bg-light">
+                <div className="alert alert-danger text-center">{error}</div>
             </div>
         );
     }
@@ -94,54 +70,69 @@ export default function GroupSuccess() {
     }
 
     return (
-        <div className="d-flex vh-100 justify-content-center align-items-center" style={{
-            background: 'linear-gradient(to right, #eef2f7, #dee8ff)',
+        <div className="d-flex flex-column justify-content-center align-items-center min-vh-100" style={{
+            background: 'linear-gradient(135deg, #E3F2FD 0%, #ffffff 100%)',
+            padding: '1rem',
         }}>
-            <div
-                ref={receiptRef}
-                className="card shadow-lg border-0 p-4"
-                style={{
-                    maxWidth: '520px',
-                    width: '100%',
-                    borderRadius: '1rem',
-                    background: 'linear-gradient(145deg, #ffffff, #f4f7fb)',
-                    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.1)'
-                }}
-            >
+            {showConfetti && <Confetti width={window.innerWidth} height={window.innerHeight} />}
+
+            <div ref={receiptRef} className="card shadow-lg border-0 p-4" style={{
+                maxWidth: '550px',
+                width: '100%',
+                borderRadius: '1.5rem',
+                background: 'rgba(255,255,255,0.95)',
+                backdropFilter: 'blur(10px)',
+            }}>
                 <div className="text-center mb-4">
-                    <FaCheckCircle size={56} className="text-success mb-3" />
-                    <h2 className="fw-bold text-dark">Payment Successful!</h2>
-                    <p className="text-muted small">Your group payment has been securely processed.</p>
+                    <div className="success-icon mb-3">
+                        <FaCheckCircle size={60} color="#ffffff" />
+                    </div>
+                    <h2 className="fw-bold text-primary">Payment Successful</h2>
+                    <p className="text-muted small mb-0">Group payment completed successfully.</p>
                 </div>
 
-                <hr className="mb-4" />
-
-                <div className="mb-3">
-                    <h6 className="text-primary">Group Information</h6>
-                    <p className="mb-1"><strong>Title:</strong> {data.title}</p>
-                    <p className="text-muted"><strong>Description:</strong> {data.description}</p>
+                <div className="p-3 mb-4 rounded" style={{ background: '#E3F2FD' }}>
+                    <h6 className="text-uppercase text-primary small mb-2">Member Payment</h6>
+                    <p><strong>Member:</strong> {data.memberName}</p>
+                    <p><strong>Assigned Amount:</strong> £{data.assignedAmount.toFixed(2)}</p>
                 </div>
 
-                <div className="mb-3">
-                    <h6 className="text-primary">Member Details</h6>
-                    <p className="mb-1"><strong>Member:</strong> {data.memberName}</p>
-                    <p className="mb-1"><strong>Amount:</strong> £{data.assignedAmount.toFixed(2)}</p>
+                <div className="p-3 mb-4 rounded" style={{ background: '#E3F2FD' }}>
+                    <h6 className="text-uppercase text-primary small mb-2">Group Details</h6>
+                    <p><strong>Title:</strong> <span className="text-primary">{data.title}</span></p>
+                    <p><strong>Description:</strong> {data.description}</p>
                 </div>
 
-                <div className="mb-4">
-                    <h6 className="text-primary">Transaction Details</h6>
-                    <p className="mb-1"><strong>Transaction ID:</strong></p>
-                    <p className="text-break text-dark small">{data.stripeTransactionId}</p>
-                    <p><strong>Paid At:</strong> {new Date(data.paidAt).toLocaleString()}</p>
+                <div className="p-3 mb-4 rounded" style={{ background: '#E3F2FD' }}>
+                    <h6 className="text-uppercase text-primary small mb-2">Transaction Info</h6>
+                    <p className="small text-break">{data.stripeTransactionId}</p>
+                    <p className="small"><strong>Paid At:</strong> {new Date(data.paidAt).toLocaleString()}</p>
                 </div>
 
-                <div className="d-flex justify-content-center mt-3">
-                    <button className="btn btn-outline-primary" onClick={handleDownload}>
+                <div className="d-flex justify-content-center mt-4">
+                    <button className="btn btn-outline-primary w-100" onClick={handleDownload}>
                         <FaDownload className="me-2" /> Download Receipt
                     </button>
-
                 </div>
             </div>
+
+            {/* Success icon bounce animation */}
+            <style>{`
+                @keyframes bounce {
+                    0%, 100% { transform: scale(1); }
+                    40% { transform: scale(1.15); }
+                }
+                .success-icon {
+                    width: 90px;
+                    height: 90px;
+                    background: linear-gradient(135deg, #00b813,#05ff1e);
+                    border-radius: 50%;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    animation: bounce 5s infinite;
+                }
+            `}</style>
         </div>
     );
 }
