@@ -109,7 +109,7 @@ function PaymentFlowRegular() {
                             {clientSecret ? (
                                 <Elements stripe={stripePromise} options={{ clientSecret }}>
                                     <CheckoutForm
-                                        onPaymentSuccess={() => navigate('/payment-status?status=success')}
+                                        onPaymentSuccess={() => navigate(`/regular-success/${linkId}`)}
                                         onPaymentError={() => navigate('/payment-status?status=error')}
                                     />
                                 </Elements>

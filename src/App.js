@@ -8,6 +8,7 @@ import PaymentFlowQr from './components/PaymentFlows/PaymentFlowQr';
 import PaymentSuccess from './components/PaymentSuccess';
 import OneTimeSuccess from './components/SuccessMassage/OneTimeSuccess'
 import GroupSuccess from './components/SuccessMassage/GroupSuccess';
+import RegularSuccess from './components/SuccessMassage/RegularSuccess';
 
 function App() {
     return (
@@ -26,6 +27,8 @@ function App() {
             <Route path="/one-time-success/:linkId" element={<OneTimeSuccess />} />
 
             <Route path="/group-success" element={<GroupSuccess />} />
+
+            <Route path="/regular-success/:linkId" element={<RegularSuccess />} />
 
         </Routes>
     );
