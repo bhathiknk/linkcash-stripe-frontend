@@ -4,39 +4,29 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import CheckoutForm from './CheckoutForm';
 import QRpaymentDetails from '../PaymentDetailsPages/QRpaymentDetails';
+import { FaLock, FaStore } from 'react-icons/fa';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-// Use your actual publishable Stripe key here
 const stripePromise = loadStripe('pk_test_51QMX8zCrXpZkt7Cpt7EYqVbgNP6Lm8N1iJ389ej6Wm0UHN5jEGzo0BHZWDGzc5bw3s7GaLGhOIifHgRPpZj3dhvQ00ZSJwQUA6');
 
 function PaymentFlowQr() {
     const { qrCode } = useParams();
     const navigate = useNavigate();
 
-    // Shop & Bill states
     const [shopData, setShopData] = useState(null);
     const [billData, setBillData] = useState(null);
-
-    // UI states
     const [loading, setLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState('');
-
-    // For PIN modal
     const [showPinModal, setShowPinModal] = useState(false);
     const [pin, setPin] = useState('');
-
-    // Stripe states
     const [clientSecret, setClientSecret] = useState(null);
+    const [paymentProcessing, setPaymentProcessing] = useState(false); // NEW
 
-    // 1) Fetch the Shop data by qrCode
     useEffect(() => {
         const fetchShopData = async () => {
             try {
                 const response = await fetch(`http://localhost:8080/api/shops/qrcode/${qrCode}`);
-                if (!response.ok) {
-                    const errText = await response.text();
-                    throw new Error(errText || 'Failed to fetch shop data.');
-                }
+                if (!response.ok) throw new Error(await response.text());
                 const data = await response.json();
                 setShopData(data);
             } catch (error) {
@@ -45,20 +35,13 @@ function PaymentFlowQr() {
                 setLoading(false);
             }
         };
-
-        if (qrCode) {
-            fetchShopData();
-        }
+        if (qrCode) fetchShopData();
     }, [qrCode]);
 
-    // 2) Fetch the Bill data by PIN
     const handleFetchBill = async () => {
         try {
             const response = await fetch(`http://localhost:8080/api/bills/${pin}`);
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || 'Failed to fetch bill data.');
-            }
+            if (!response.ok) throw new Error(await response.text());
             const data = await response.json();
             setBillData(data);
             setShowPinModal(false);
@@ -68,14 +51,11 @@ function PaymentFlowQr() {
         }
     };
 
-    // 3) Once we have the Bill, fetch Stripe's clientSecret using the "shop" payment flow
     useEffect(() => {
         if (billData && !clientSecret && shopData) {
-            // Build the payload for your backend's /api/transactions/initiate
-            // Using "paymentType: shop"
             const payload = {
                 paymentType: 'shop',
-                shopId: shopData.shopId,    // from the shop data
+                shopId: shopData.shopId,
                 billId: billData.billId,
                 amount: billData.total
             };
@@ -85,16 +65,12 @@ function PaymentFlowQr() {
 
     const fetchClientSecret = async (payload) => {
         try {
-            const apiUrl = 'http://localhost:8080/api/transactions/initiate';
-            const response = await fetch(apiUrl, {
+            const response = await fetch('http://localhost:8080/api/transactions/initiate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.error || 'Failed to initiate payment');
-            }
+            if (!response.ok) throw new Error((await response.json()).error || 'Failed to initiate payment');
             const data = await response.json();
             setClientSecret(data.clientSecret);
         } catch (error) {
@@ -102,20 +78,34 @@ function PaymentFlowQr() {
         }
     };
 
-    // 4) Main UI
+    const handlePaymentSuccess = () => {
+        setPaymentProcessing(true); // show loader
+        setTimeout(() => {
+            navigate(`/payment-success?billId=${billData.billId}`);
+        }, 5000); // wait 5 seconds
+    };
 
-    // Loading or error for shop
     if (loading) {
         return (
-            <div className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
+            <div className="d-flex flex-column align-items-center justify-content-center min-vh-100 gradient-bg">
                 <div className="spinner-border text-primary" role="status"></div>
                 <p className="mt-3 text-muted">Loading shop data...</p>
             </div>
         );
     }
+
+    if (paymentProcessing) {
+        return (
+            <div className="d-flex flex-column align-items-center justify-content-center min-vh-100 gradient-bg">
+                <div className="spinner-border text-success" role="status" />
+                <p className="mt-3 fw-semibold text-white">Finalizing payment…</p>
+            </div>
+        );
+    }
+
     if (errorMessage && !shopData) {
         return (
-            <div className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '100vh' }}>
+            <div className="d-flex flex-column align-items-center justify-content-center min-vh-100 gradient-bg">
                 <div className="alert alert-danger text-center" style={{ maxWidth: '600px' }}>
                     <h4>Error</h4>
                     <p>{errorMessage}</p>
@@ -123,131 +113,81 @@ function PaymentFlowQr() {
             </div>
         );
     }
-    if (!shopData) {
-        return (
-            <div className="text-center" style={{ minHeight: '100vh', padding: '2rem' }}>
-                <p>No shop data found.</p>
-            </div>
-        );
-    }
 
-    // If no bill yet, user must click "Pay for Bill" and enter PIN
-    // Once bill is loaded, show the details & potential payment flow
     const renderPaymentFlow = () => {
-        // If we have an error while fetching the Bill, show an alert (billData === null)
         if (errorMessage && !billData) {
             return (
-                <div className="alert alert-danger" style={{ maxWidth: '600px' }}>
+                <div className="alert alert-danger text-center" style={{ maxWidth: '600px' }}>
                     {errorMessage}
                 </div>
             );
         }
 
-        // If we haven't fetched a Bill yet, just show nothing or a helpful note
-        if (!billData) {
-            return null; // or <p>Please enter PIN to retrieve Bill</p>
-        }
+        if (!billData) return null;
 
-        // If Bill is found, check if it's used or paid, etc. (optional)
-        // For now, we let them proceed if "status" = PENDING
         if (billData.status === 'PAID') {
             return (
-                <div className="card shadow text-center p-4">
+                <div className="card shadow-lg text-center p-4" style={{ borderRadius: '1rem' }}>
                     <h4 className="text-danger">This Bill is already paid.</h4>
                 </div>
             );
         }
 
-        // If not paid => display the Bill UI and the Stripe form
         return (
-            <div
-                className="card shadow"
-                style={{
-                    border: 'none',
-                    borderRadius: '1rem',
-                    overflow: 'hidden',
-                    maxWidth: '900px',
-                    width: '100%',
-                    marginBottom: '2rem'
-                }}
-            >
-                <div className="card-body row">
-                    {/* Left Column: Bill & Shop details */}
-                    <div className="col-12 col-md-6 mb-4 mb-md-0">
-                        <QRpaymentDetails billData={billData} shopData={shopData} />
-                    </div>
-
-                    {/* Right Column: Stripe Payment */}
-                    <div className="col-12 col-md-6">
-                        {clientSecret ? (
-                            <Elements stripe={stripePromise} options={{ clientSecret }}>
-                                <CheckoutForm
-                                    onPaymentSuccess={() => navigate(`/payment-success?billId=${billData.billId}`)}
-                                    onPaymentError={() => navigate('/payment-status?status=error')}
-                                />
-                            </Elements>
-                        ) : (
-                            <div className="text-center mt-4">
-                                <div className="spinner-border text-primary" role="status" />
-                                <p>Initializing payment...</p>
-                            </div>
-                        )}
-                    </div>
+            <div className="card shadow-lg p-4" style={{ borderRadius: '1rem', maxWidth: '600px', width: '100%' }}>
+                <div className="mb-4">
+                    <QRpaymentDetails billData={billData} shopData={shopData} />
                 </div>
+                {clientSecret ? (
+                    <Elements stripe={stripePromise} options={{ clientSecret }}>
+                        <CheckoutForm
+                            onPaymentSuccess={handlePaymentSuccess}
+                            onPaymentError={() => navigate('/payment-status?status=error')}
+                        />
+                    </Elements>
+                ) : (
+                    <div className="text-center mt-4">
+                        <div className="spinner-border text-primary" role="status" />
+                        <p>Initializing payment...</p>
+                    </div>
+                )}
             </div>
         );
     };
 
     return (
         <div
-            style={{
-                minHeight: '100vh',
-                background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                padding: '2rem'
-            }}
+            className="gradient-bg d-flex flex-column justify-content-center align-items-center min-vh-100 px-3"
+            style={{ paddingTop: '2rem', paddingBottom: '2rem' }}
         >
-            {/* ---------- SHOP INFO CARD ---------- */}
-            <div
-                className="card shadow mb-4"
-                style={{ border: 'none', borderRadius: '1rem', overflow: 'hidden', maxWidth: '600px', width: '100%' }}
-            >
-                <div className="card-body">
-                    <h2 className="card-title text-primary mb-4 text-center">Shop Information</h2>
-                    <ul className="list-group list-group-flush">
-                        <li className="list-group-item">
-                            <strong>Shop ID:</strong> {shopData.shopId}
-                        </li>
-                        <li className="list-group-item">
-                            <strong>Shop Name:</strong> {shopData.shopName}
-                        </li>
-                        <li className="list-group-item">
-                            <strong>Address:</strong> {shopData.address}
-                        </li>
-                    </ul>
+            <div className="blob d-none d-sm-block" />
 
-                    <div className="mt-4 text-center">
-                        <button
-                            className="btn btn-success btn-lg"
-                            onClick={() => {
-                                setShowPinModal(true);
-                                setPin('');
-                                setBillData(null);
-                                setErrorMessage('');
-                            }}
-                        >
-                            Pay for Bill
-                        </button>
-                    </div>
+            <div className="card shadow-lg mb-4 text-center p-4" style={{ borderRadius: '1.5rem', maxWidth: '600px', width: '100%' }}>
+                <FaStore size={30} className="text-primary mb-3" />
+                <h3 className="text-dark fw-bold">Shop Information</h3>
+                <ul className="list-group list-group-flush mt-3 text-start">
+                    <li className="list-group-item bg-transparent"><strong>Shop ID:</strong> {shopData.shopId}</li>
+                    <li className="list-group-item bg-transparent"><strong>Shop Name:</strong> {shopData.shopName}</li>
+                    <li className="list-group-item bg-transparent"><strong>Address:</strong> {shopData.address}</li>
+                </ul>
+                <div className="mt-4">
+                    <button
+                        className="btn btn-primary btn-lg px-4"
+                        onClick={() => {
+                            setShowPinModal(true);
+                            setPin('');
+                            setBillData(null);
+                            setErrorMessage('');
+                        }}
+                    >
+                        <FaLock className="me-2" />
+                        Enter Bill PIN to Pay
+                    </button>
                 </div>
             </div>
 
-            {/* ---------- BILL + STRIPE FLOW ---------- */}
             {renderPaymentFlow()}
 
-            {/* ---------- PIN MODAL (popup) ---------- */}
             {showPinModal && (
                 <div
                     style={{
@@ -256,42 +196,57 @@ function PaymentFlowQr() {
                         left: 0,
                         width: '100vw',
                         height: '100vh',
-                        backgroundColor: 'rgba(0,0,0,0.4)',
+                        backgroundColor: 'rgba(0,0,0,0.6)',
                         display: 'flex',
                         justifyContent: 'center',
                         alignItems: 'center',
                         zIndex: 9999
                     }}
                 >
-                    <div
-                        className="card shadow"
-                        style={{ width: '400px', padding: '1.5rem', borderRadius: '0.5rem', position: 'relative' }}
-                    >
-                        <h4 className="mb-3 text-center">Enter Your Bill PIN</h4>
+                    <div className="card shadow-lg" style={{ width: 400, padding: '2rem', borderRadius: '1rem' }}>
+                        <h4 className="mb-4 text-center text-primary fw-bold">Enter Bill PIN</h4>
                         <input
                             type="text"
                             value={pin}
                             onChange={(e) => setPin(e.target.value)}
-                            className="form-control mb-4"
-                            placeholder="Enter Bill PIN"
+                            className="form-control mb-3"
+                            placeholder="e.g. 123456"
                         />
                         <div className="d-flex justify-content-end">
-                            <button
-                                className="btn btn-secondary me-2"
-                                onClick={() => {
-                                    setShowPinModal(false);
-                                    setPin('');
-                                }}
-                            >
-                                Cancel
-                            </button>
-                            <button className="btn btn-primary" onClick={handleFetchBill}>
-                                Confirm
-                            </button>
+                            <button className="btn btn-outline-secondary me-2" onClick={() => setShowPinModal(false)}>Cancel</button>
+                            <button className="btn btn-success" onClick={handleFetchBill}>Confirm</button>
                         </div>
                     </div>
                 </div>
             )}
+
+            <style>{`
+                .gradient-bg {
+                    background: linear-gradient(135deg, #83B6B9 0%, #E3F2FD 50%, #0054FF 100%);
+                    animation: bgFade 1.2s both;
+                }
+                @keyframes bgFade {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                .blob {
+                    position: absolute;
+                    width: 65vw;
+                    max-width: 500px;
+                    height: 65vw;
+                    max-height: 500px;
+                    background: radial-gradient(circle at 30% 30%, #ffffff55 0%, #ffffff00 70%);
+                    filter: blur(80px);
+                    animation: blobFloat 14s ease-in-out infinite alternate;
+                }
+                @keyframes blobFloat {
+                    from { transform: translate(-25%, -35%) scale(1); }
+                    to { transform: translate(15%, 10%) scale(1.15); }
+                }
+                @media (max-width: 576px) {
+                    .blob { display: none; }
+                }
+            `}</style>
         </div>
     );
 }

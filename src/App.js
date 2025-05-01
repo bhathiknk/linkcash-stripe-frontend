@@ -5,7 +5,7 @@ import PaymentFlowOneTime from './components/PaymentFlows/PaymentFlowOneTime';
 import PaymentFlowGroup from './components/PaymentFlows/PaymentFlowGroup';
 import PaymentStatus from './components/PaymentStatus';
 import PaymentFlowQr from './components/PaymentFlows/PaymentFlowQr';
-import PaymentSuccess from './components/PaymentSuccess';
+import ShopPaymentSuccess from './components/SuccessMassage/ShopPaymentSuccess';
 import OneTimeSuccess from './components/SuccessMassage/OneTimeSuccess'
 import GroupSuccess from './components/SuccessMassage/GroupSuccess';
 import RegularSuccess from './components/SuccessMassage/RegularSuccess';
@@ -21,8 +21,8 @@ function App() {
             {/*route for scanning QR code /bill/payment/:qrCode */}
             <Route path="/bill/payment/:qrCode" element={<PaymentFlowQr />} />
 
-            {/* Add a route for PaymentSuccess */}
-            <Route path="/payment-success" element={<PaymentSuccess />} />
+            {/* Add a route for ShopPaymentSuccess */}
+            <Route path="/payment-success" element={<ShopPaymentSuccess />} />
 
             <Route path="/one-time-success/:linkId" element={<OneTimeSuccess />} />
 
